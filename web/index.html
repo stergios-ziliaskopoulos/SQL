@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>SQL — εξάσκηση από το κινητό</title>
+<link rel="icon" href="data:,">
 <style>
   :root {
     --bg: #f6f7f9; --panel: #fff; --ink: #16181d; --muted: #5b616e;
@@ -74,6 +75,7 @@
   <div class="row">
     <button class="primary" id="run" disabled>▶ Εκτέλεση</button>
     <button id="tables">Πίνακες</button>
+    <button id="star">+ Star schema</button>
     <button id="reset">Επαναφορά βάσης</button>
   </div>
   <div class="row">
@@ -135,7 +137,11 @@ const EXAMPLES = [
   ['Μ7 · Μηνιαίος τζίρος + μεταβολή',
    "WITH ανά_μήνα AS (\n  SELECT STRFTIME('%Y-%m', o.order_date) AS μήνας,\n         SUM(i.quantity * i.unit_price) AS τζίρος\n  FROM orders o\n  JOIN order_items i ON i.order_id = o.id\n  WHERE o.status = 'paid'\n  GROUP BY μήνας\n)\nSELECT μήνας, ROUND(τζίρος, 2) AS τζίρος,\n       ROUND(τζίρος - LAG(τζίρος) OVER (ORDER BY μήνας), 2) AS μεταβολή,\n       ROUND(SUM(τζίρος) OVER (ORDER BY μήνας), 2) AS αθροιστικά\nFROM ανά_μήνα ORDER BY μήνας;"],
   ['Μ8 · Αλλαγή δεδομένων', "UPDATE books SET price = ROUND(price * 1.1, 2) WHERE category_id = 7;\nSELECT title, price FROM books WHERE category_id = 7;"],
-  ['Μ9 · Πλάνο εκτέλεσης', 'EXPLAIN QUERY PLAN SELECT * FROM orders WHERE customer_id = 5;']
+  ['Μ9 · Πλάνο εκτέλεσης', 'EXPLAIN QUERY PLAN SELECT * FROM orders WHERE customer_id = 5;'],
+  ['Μ11 · Μηνιαίος τζίρος με κενούς μήνες (θέλει «+ Star schema»)',
+   "SELECT d.month_key AS μήνας,\n       ROUND(COALESCE(SUM(f.line_amount), 0), 2) AS τζίρος\nFROM dim_date d\nLEFT JOIN fact_sales f ON f.date_key = d.date_key AND f.status = 'paid'\nWHERE d.year = 2024\nGROUP BY d.month_key\nORDER BY d.month_key;"],
+  ['Μ11 · Pareto βιβλίων (θέλει «+ Star schema»)',
+   "WITH έσοδα AS (\n  SELECT b.title, SUM(f.line_amount) AS ποσό\n  FROM fact_sales f\n  JOIN dim_book b ON b.book_key = f.book_key\n  WHERE f.status = 'paid'\n  GROUP BY b.book_key, b.title\n)\nSELECT title,\n       ROUND(ποσό, 2) AS έσοδα,\n       ROUND(ποσό * 100.0 / SUM(ποσό) OVER (), 1) AS μερίδιο_pct,\n       ROUND(SUM(ποσό) OVER (ORDER BY ποσό DESC) * 100.0 / SUM(ποσό) OVER (), 1) AS αθροιστικά_pct\nFROM έσοδα ORDER BY ποσό DESC;"]
 ];
 
 function esc(s) { return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
@@ -212,6 +218,17 @@ EXAMPLES.forEach(([label, sql], i) => {
 
 $('run').addEventListener('click', run);
 $('reset').addEventListener('click', () => { build(); outEl.innerHTML = '<div class="ok">Η βάση επανήλθε στην αρχική της κατάσταση.</div>'; });
+$('star').addEventListener('click', async () => {
+  try {
+    const sql = await fetch('../bi/star_schema.sql').then(r => r.text());
+    db.run(sql);
+    renderSchema();
+    outEl.innerHTML = '<div class="ok">Το star schema χτίστηκε: dim_date, dim_book, ' +
+      'dim_customer, fact_sales. Δοκίμασε τα παραδείγματα του Μαθήματος 11.</div>';
+  } catch (e) {
+    outEl.innerHTML = `<div class="err">${esc(e.message)}</div>`;
+  }
+});
 $('tables').addEventListener('click', () => {
   $('q').value = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;";
   run();

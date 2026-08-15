@@ -171,3 +171,4 @@ ORDER BY o.order_date;
 ---
 
 ➡️ **Ασκήσεις:** [`exercises/lesson-10.md`](../exercises/lesson-10.md) — μεγάλες, ρεαλιστικές
+➡️ **Επόμενο:** [Μάθημα 11 — SQL για BI και reporting](11-bi-reporting.md)
