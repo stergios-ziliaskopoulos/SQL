@@ -1,0 +1,6 @@
+# Η βάση παράγεται από τα db/schema.sql + db/seed.sql
+bookstore.db
+*.db-journal
+
+__pycache__/
+*.pyc
