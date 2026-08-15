@@ -33,6 +33,14 @@ python3 tools/build_db.py                            # επαναφορά της
 
 ---
 
+## Από κινητό
+
+Ο φάκελος [`web/`](web/) είναι κονσόλα SQL που τρέχει ολόκληρη τη βάση **μέσα στον browser
+του κινητού** (SQLite σε WebAssembly, χωρίς server). Οδηγίες ενεργοποίησης και οι υπόλοιπες
+επιλογές — Codespaces, εφαρμογή GitHub — στο [`MOBILE.md`](MOBILE.md).
+
+---
+
 ## Τα μαθήματα
 
 | # | Μάθημα | Τι μαθαίνεις |
@@ -100,6 +108,8 @@ lessons/                      τα 10 μαθήματα
 exercises/                    ασκήσεις ανά μάθημα
 exercises/solutions/          λύσεις, εκτελέσιμες με sql.py -f
 examples/dashboard.sql        το μεγάλο παράδειγμα του Μαθήματος 10
+web/                          κονσόλα SQL για κινητό (GitHub Pages)
+MOBILE.md                     πώς δουλεύεις το project από το κινητό
 ```
 
 ---

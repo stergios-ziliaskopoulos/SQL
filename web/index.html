@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>SQL — εξάσκηση από το κινητό</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #fff; --ink: #16181d; --muted: #5b616e;
+    --line: #dfe3e8; --accent: #2b6cb0; --accent-ink: #fff;
+    --err: #b42318; --ok: #067647; --code: #f1f3f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a; --panel: #1c1f25; --ink: #e8eaed; --muted: #9aa1ac;
+      --line: #2e333b; --accent: #63a4e0; --accent-ink: #10131a;
+      --err: #ff9c93; --ok: #6ee7a8; --code: #23272e;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+    max-width: 900px; margin: 0 auto;
+  }
+  h1 { font-size: 1.15rem; margin: 4px 0 2px; }
+  .sub { color: var(--muted); font-size: .82rem; margin-bottom: 12px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 12px; margin-bottom: 12px;
+  }
+  textarea {
+    width: 100%; min-height: 130px; resize: vertical;
+    font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: var(--ink); background: var(--code);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px;
+    -webkit-appearance: none;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  button, select {
+    font: 500 14px/1 inherit; padding: 11px 14px; border-radius: 9px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    min-height: 44px;                       /* άνετο για δάχτυλο */
+  }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+  button:disabled { opacity: .5; }
+  select { flex: 1 1 100%; }
+  .out { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+  th, td { border-bottom: 1px solid var(--line); padding: 7px 12px 7px 0; text-align: left; }
+  th { font-weight: 600; color: var(--muted); position: sticky; top: 0; background: var(--panel); }
+  td.null { color: var(--muted); font-style: italic; }
+  .meta { color: var(--muted); font-size: .8rem; margin-top: 8px; }
+  .err { color: var(--err); font-family: ui-monospace, monospace; font-size: 13px; white-space: pre-wrap; }
+  .ok { color: var(--ok); font-size: .9rem; }
+  details { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px; }
+  details summary { cursor: pointer; font-size: .9rem; font-weight: 600; padding: 4px 0; }
+  .schema { font: 12px/1.6 ui-monospace, monospace; color: var(--muted); overflow-x: auto; }
+  .schema b { color: var(--ink); }
+  code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: .85em; }
+</style>
+</head>
+<body>
+
+<h1>SQL — εξάσκηση από το κινητό</h1>
+<div class="sub">Η βάση «Βιβλιοπωλείο» τρέχει ολόκληρη μέσα στον browser (SQLite/WebAssembly). Τίποτα δεν στέλνεται σε server.</div>
+
+<div class="panel">
+  <textarea id="q" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"
+            placeholder="SELECT title, price FROM books ORDER BY price DESC LIMIT 5;"></textarea>
+  <div class="row">
+    <button class="primary" id="run" disabled>▶ Εκτέλεση</button>
+    <button id="tables">Πίνακες</button>
+    <button id="reset">Επαναφορά βάσης</button>
+  </div>
+  <div class="row">
+    <select id="examples">
+      <option value="">— Έτοιμα παραδείγματα ανά μάθημα —</option>
+    </select>
+  </div>
+  <div class="meta" id="status">Φόρτωση μηχανής SQLite…</div>
+</div>
+
+<div class="panel">
+  <div class="out" id="out"><div class="meta">Το αποτέλεσμα θα εμφανιστεί εδώ.</div></div>
+</div>
+
+<div class="panel">
+  <details>
+    <summary>Το σχήμα της βάσης (τι πίνακες και στήλες υπάρχουν)</summary>
+    <div class="schema" id="schema">…</div>
+  </details>
+  <details>
+    <summary>Βοήθεια</summary>
+    <div class="meta">
+      Γράψε ένα ή περισσότερα ερωτήματα χωρισμένα με <code>;</code> και πάτα Εκτέλεση.
+      Εμφανίζεται το αποτέλεσμα του καθενός.<br><br>
+      Οι αλλαγές (<code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code>) ισχύουν μόνο σε αυτή τη
+      συνεδρία — «Επαναφορά βάσης» τα σβήνει όλα και ξαναχτίζει τα αρχικά δεδομένα.
+      Χάλασέ την ελεύθερα.<br><br>
+      Σε εξωτερικό πληκτρολόγιο: <code>Ctrl/Cmd + Enter</code> για εκτέλεση.
+    </div>
+  </details>
+</div>
+
+<script src="vendor/sql-wasm.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const statusEl = $('status'), outEl = $('out');
+let db = null, SQL = null, schemaSQL = '', seedSQL = '';
+
+const EXAMPLES = [
+  ['Μ1 · Όλα τα βιβλία', 'SELECT * FROM books;'],
+  ['Μ1 · Τίτλος και τιμή με ΦΠΑ', "SELECT title, price, ROUND(price * 1.24, 2) AS τιμή_με_ΦΠΑ\nFROM books;"],
+  ['Μ2 · Φίλτρο τιμής', 'SELECT title, price FROM books WHERE price < 12;'],
+  ['Μ2 · Πελάτες χωρίς πόλη', 'SELECT first_name, last_name FROM customers WHERE city IS NULL;'],
+  ['Μ3 · Τα 5 ακριβότερα', 'SELECT title, price FROM books ORDER BY price DESC LIMIT 5;'],
+  ['Μ3 · CASE: κατάσταση αποθέματος',
+   "SELECT title, stock,\n       CASE WHEN stock = 0 THEN 'εξαντλήθηκε'\n            WHEN stock < 5 THEN 'χαμηλό'\n            ELSE 'επαρκές' END AS κατάσταση\nFROM books ORDER BY stock;"],
+  ['Μ4 · Πλήθος ανά κατηγορία',
+   'SELECT category_id, COUNT(*) AS πλήθος, ROUND(AVG(price), 2) AS μέση_τιμή\nFROM books\nGROUP BY category_id\nORDER BY πλήθος DESC;'],
+  ['Μ5 · Βιβλία με συγγραφέα',
+   'SELECT b.title, a.name AS συγγραφέας\nFROM books b\nJOIN authors a ON a.id = b.author_id\nORDER BY a.name;'],
+  ['Μ5 · Πελάτες χωρίς παραγγελία',
+   'SELECT c.first_name, c.last_name\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE o.id IS NULL;'],
+  ['Μ5 · Top πωλήσεις',
+   "SELECT b.title, SUM(i.quantity) AS τεμάχια,\n       ROUND(SUM(i.quantity * i.unit_price), 2) AS έσοδα\nFROM books b\nJOIN order_items i ON i.book_id = b.id\nJOIN orders o ON o.id = i.order_id\nWHERE o.status = 'paid'\nGROUP BY b.id, b.title\nORDER BY τεμάχια DESC\nLIMIT 10;"],
+  ['Μ6 · CTE: τζίρος ανά πελάτη',
+   "WITH σύνολα AS (\n  SELECT o.customer_id, SUM(i.quantity * i.unit_price) AS ποσό\n  FROM orders o\n  JOIN order_items i ON i.order_id = o.id\n  WHERE o.status = 'paid'\n  GROUP BY o.customer_id\n)\nSELECT c.first_name || ' ' || c.last_name AS πελάτης, ROUND(s.ποσό, 2) AS τζίρος\nFROM σύνολα s\nJOIN customers c ON c.id = s.customer_id\nORDER BY τζίρος DESC;"],
+  ['Μ7 · Top-2 ανά κατηγορία (window)',
+   'WITH κατάταξη AS (\n  SELECT title, category_id, price,\n         ROW_NUMBER() OVER (PARTITION BY category_id ORDER BY price DESC) AS σειρά\n  FROM books\n)\nSELECT category_id, title, price FROM κατάταξη\nWHERE σειρά <= 2\nORDER BY category_id;'],
+  ['Μ7 · Μηνιαίος τζίρος + μεταβολή',
+   "WITH ανά_μήνα AS (\n  SELECT STRFTIME('%Y-%m', o.order_date) AS μήνας,\n         SUM(i.quantity * i.unit_price) AS τζίρος\n  FROM orders o\n  JOIN order_items i ON i.order_id = o.id\n  WHERE o.status = 'paid'\n  GROUP BY μήνας\n)\nSELECT μήνας, ROUND(τζίρος, 2) AS τζίρος,\n       ROUND(τζίρος - LAG(τζίρος) OVER (ORDER BY μήνας), 2) AS μεταβολή,\n       ROUND(SUM(τζίρος) OVER (ORDER BY μήνας), 2) AS αθροιστικά\nFROM ανά_μήνα ORDER BY μήνας;"],
+  ['Μ8 · Αλλαγή δεδομένων', "UPDATE books SET price = ROUND(price * 1.1, 2) WHERE category_id = 7;\nSELECT title, price FROM books WHERE category_id = 7;"],
+  ['Μ9 · Πλάνο εκτέλεσης', 'EXPLAIN QUERY PLAN SELECT * FROM orders WHERE customer_id = 5;']
+];
+
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function renderResults(results, sql) {
+  if (!results.length) {
+    const ch = db.getRowsModified();
+    return `<div class="ok">OK${ch ? ` — ${ch} γραμμές επηρεάστηκαν` : ''}</div>`;
+  }
+  return results.map(res => {
+    const head = res.columns.map(c => `<th>${esc(c)}</th>`).join('');
+    const body = res.values.map(r =>
+      '<tr>' + r.map(v => v === null
+        ? '<td class="null">NULL</td>'
+        : `<td>${esc(v)}</td>`).join('') + '</tr>').join('');
+    return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` +
+           `<div class="meta">${res.values.length} γραμμές</div>`;
+  }).join('<hr style="border:none;border-top:1px solid var(--line);margin:14px 0">');
+}
+
+function run() {
+  const sql = $('q').value.trim();
+  if (!sql || !db) return;
+  localStorage.setItem('sql-last', sql);
+  try {
+    outEl.innerHTML = renderResults(db.exec(sql), sql);
+  } catch (e) {
+    outEl.innerHTML = `<div class="err">Σφάλμα SQL: ${esc(e.message)}</div>`;
+  }
+}
+
+function build() {
+  if (db) db.close();
+  db = new SQL.Database();
+  db.run(schemaSQL);
+  db.run(seedSQL);
+  statusEl.textContent = 'Έτοιμο — η βάση φορτώθηκε (8 πίνακες).';
+  renderSchema();
+}
+
+function renderSchema() {
+  const rows = db.exec(
+    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")[0].values;
+  $('schema').innerHTML = rows.map(([t]) => {
+    const cols = db.exec(`PRAGMA table_info(${t})`)[0].values
+      .map(c => c[1] + (c[5] ? ' 🔑' : '')).join(', ');
+    return `<b>${esc(t)}</b>(${esc(cols)})`;
+  }).join('<br><br>');
+}
+
+(async function init() {
+  try {
+    SQL = await initSqlJs({ locateFile: f => 'vendor/' + f });
+    const [s, d] = await Promise.all([
+      fetch('../db/schema.sql').then(r => r.text()),
+      fetch('../db/seed.sql').then(r => r.text())
+    ]);
+    schemaSQL = s; seedSQL = d;
+    build();
+    $('run').disabled = false;
+    $('q').value = localStorage.getItem('sql-last') ||
+      'SELECT title, price FROM books ORDER BY price DESC LIMIT 5;';
+  } catch (e) {
+    statusEl.innerHTML = `<span class="err">Δεν φόρτωσε: ${esc(e.message)}\n` +
+      'Η σελίδα πρέπει να ανοίγει μέσω http(s) — π.χ. GitHub Pages — όχι ως τοπικό αρχείο.</span>';
+  }
+})();
+
+EXAMPLES.forEach(([label, sql], i) => {
+  const o = document.createElement('option');
+  o.value = String(i); o.textContent = label;
+  $('examples').appendChild(o);
+});
+
+$('run').addEventListener('click', run);
+$('reset').addEventListener('click', () => { build(); outEl.innerHTML = '<div class="ok">Η βάση επανήλθε στην αρχική της κατάσταση.</div>'; });
+$('tables').addEventListener('click', () => {
+  $('q').value = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;";
+  run();
+});
+$('examples').addEventListener('change', e => {
+  if (e.target.value === '') return;
+  $('q').value = EXAMPLES[+e.target.value][1];
+  e.target.value = '';
+  run();
+});
+$('q').addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); run(); }
+});
+</script>
+</body>
+</html>
